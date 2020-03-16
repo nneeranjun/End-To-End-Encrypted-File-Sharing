@@ -86,7 +86,8 @@ func bytesToUUID(data []byte) (ret uuid.UUID) {
 type User struct {
 	Username string
 	Salt[] byte
-	Password
+	Password[] byte
+	//TODO: Maybe add files and access tokens???
 
 	// You can add other fields here if you want...
 	// Note for JSON to marshal/unmarshal, the fields need to
@@ -114,6 +115,29 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 
 	//TODO: This is a toy implementation.
 	userdata.Username = username
+	//generate random salt
+	var salt = userlib.RandomBytes(20)
+	userdata.Salt = salt
+	//set password to be some sort of hash of the password with the salt
+	//TODO: Need to figure out how to store the password: userdata.Password = some Hash with salt
+	var hkdf_key = userlib.Argon2Key([]byte (password), salt, 32) //key generated to generate more keys using HKDF
+	var macKey, _ = userlib.HashKDF(hkdf_key, []byte("mac")) //MAC key used for MAC-ing other keys
+	//Generate public & private keys
+	//var pk userlib.PKEEncKey
+	//var sk userlib.PKEDecKey
+	//pk, sk, _ = userlib.PKEKeyGen()
+
+	macKey = macKey[:16]
+	//e := userlib.KeystoreSet(username, pk)
+	//error if username already exists
+	/*if e != nil {
+		return nil, e
+	}*/
+	//Jsonify user struct data and store in DataStore
+	var uuid = bytesToUUID([]byte(username))
+	var data, _ = json.Marshal(userdata)
+	userlib.DatastoreSet(uuid, data)
+
 	//End of toy implementation
 
 	return &userdata, nil
