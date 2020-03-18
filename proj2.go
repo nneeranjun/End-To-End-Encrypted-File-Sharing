@@ -86,9 +86,10 @@ func bytesToUUID(data []byte) (ret uuid.UUID) {
 type User struct {
 	Username string
 	Salt[] byte
-	Password[] byte
-	Private_Key map
+	Password string
+	PrivateKeys map[string]string
 	//TODO: Maybe add files and access tokens???
+
 
 	// You can add other fields here if you want...
 	// Note for JSON to marshal/unmarshal, the fields need to
@@ -116,29 +117,42 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 
 	//TODO: This is a toy implementation.
 	userdata.Username = username
+	userdata.Password = password
+	userdata.PrivateKeys = make(map[string]string) //initializing map
 	//generate random salt
 	var salt = userlib.RandomBytes(20)
+
 	userdata.Salt = salt
 	//set password to be some sort of hash of the password with the salt
 	//TODO: Need to figure out how to store the password: userdata.Password = some Hash with salt
 	var hkdfKey = userlib.Argon2Key([]byte (password), salt, 32) //key generated to generate more keys using HKDF
 	var macKey, _ = userlib.HashKDF(hkdfKey, []byte("mac")) //MAC key used for MAC-ing other keys
+	var symmEncKey, _ = userlib.HashKDF(hkdfKey, []byte("symmetric_encryption")) //symmetric key used for encryption
+	macKey = macKey[:16]
+	symmEncKey = symmEncKey[:16]
+
 	//Generate public & private keys
 	var pk userlib.PKEEncKey
 	var sk userlib.PKEDecKey
 	pk, sk, _ = userlib.PKEKeyGen()
+	pk = pk //garbage
 
-	macKey = macKey[:16]
-	sk.PrivKey.Sign()
-	//e := userlib.KeystoreSet(username, pk)
+
+	var mac, _ = userlib.HMACEval(macKey, []byte("This is " + username +(sk.KeyType))) //MAC used for secret key generated above (Do we include SK here)?
+	var encSK = string(userlib.SymEnc(symmEncKey, userlib.RandomBytes(16), sk.PrivKey.D.Bytes())) //encrypting the secret key so attackers can't see
+	userdata.PrivateKeys[encSK] = string(mac) //mapping private key to mac for verification
+
+	e := userlib.KeystoreSet(username, pk) //storing public in Keystore
 	//error if username already exists
-	/*if e != nil {
+	if e != nil {
 		return nil, e
-	}*/
+	}
 	//Jsonify user struct data and store in DataStore
-	var uuid = bytesToUUID([]byte(username))
-	var data, _ = json.Marshal(userdata)
-	userlib.DatastoreSet(uuid, data)
+	var mac_username, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
+	var UUID = bytesToUUID(mac_username) //generate UUID from Hash of username
+
+	var data, _ = json.Marshal(userdata) //
+	userlib.DatastoreSet(UUID, data)
 
 	//End of toy implementation
 
