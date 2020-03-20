@@ -160,9 +160,10 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userlib.DatastoreSet(UUID, data)
 
 	//End of toy implementation
-
 	return &userdata, nil
 }
+
+
 
 // This fetches the user information from the Datastore.  It should
 // fail with an error if the user/password is invalid, or if the user
