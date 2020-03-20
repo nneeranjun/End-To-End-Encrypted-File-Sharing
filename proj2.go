@@ -85,6 +85,7 @@ func bytesToUUID(data []byte) (ret uuid.UUID) {
 // The structure definition for a user record
 type User struct {
 	Username string
+	MacUsername[] byte
 	SaltHKDF[] byte
 	SaltPassword[] byte
 	Password[] byte
@@ -96,6 +97,7 @@ type User struct {
 	// Note for JSON to marshal/unmarshal, the fields need to
 	// be public (start with a capital letter)
 }
+
 
 // This creates a user.  It will only be called once for a user
 // (unless the keystore and datastore are cleared during testing purposes)
@@ -112,6 +114,7 @@ type User struct {
 // You can assume the password has strong entropy, EXCEPT
 // the attackers may possess a precomputed tables containing 
 // hashes of common passwords downloaded from the internet.
+
 func InitUser(username string, password string) (userdataptr *User, err error) {
 	var userdata User
 	userdataptr = &userdata
@@ -141,8 +144,6 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	var sk userlib.PKEDecKey
 	pk, sk, _ = userlib.PKEKeyGen()
 
-	print("ok")
-
 	var macSK, _ = userlib.HMACEval(macKey, []byte("This is " + username +(sk.KeyType))) //MAC used for secret key generated above (Do we include SK here)?
 	var encSK = string(userlib.SymEnc(symmEncKey, userlib.RandomBytes(16), sk.PrivKey.D.Bytes())) //encrypting the secret key so attackers can't see
 	userdata.PrivateKeys[encSK] = string(macSK) //mapping private key to mac for verification
@@ -153,8 +154,11 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 		return nil, e
 	}
 	//Jsonify user struct data and store in DataStore
-	var macUsername, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
+	var all_zeroes = make([]byte, 16)
+	var macUsername, _ = userlib.HMACEval(all_zeroes, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
+	userdata.MacUsername = macUsername
 	var UUID = bytesToUUID(macUsername)                             //generate UUID from Hash of username
+	//update our struct here
 
 	var data, _ = json.Marshal(userdata)
 	userlib.DatastoreSet(UUID, data)
@@ -170,6 +174,26 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 func GetUser(username string, password string) (userdataptr *User, err error) {
 	var userdata User
 	userdataptr = &userdata
+
+	var all_zeroes = make([]byte, 16)
+	println("ALL ZEROES: " ,all_zeroes)
+
+	var macUsername, _ = userlib.HMACEval(all_zeroes, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
+	userdata.MacUsername = macUsername
+	var UUID = bytesToUUID(macUsername)
+
+	//var hkdfKey = userlib.Argon2Key([]byte (password), saltHKDF, 32) //key generated to generate more keys using HKDF
+	//var macKey, _ = userlib.HashKDF(hkdfKey, []byte("mac")) //MAC key used for MAC-ing other keys
+
+	var userStruct, ok = userlib.DatastoreGet(UUID)
+	ok = ok
+
+	json.Unmarshal(userStruct, &UUID)
+	print("UUID STRING" + UUID.String())
+
+	//var userStruct_username = userStruct.Username
+	//
+	//if username != userStruct. or
 
 	return userdataptr, nil
 }
