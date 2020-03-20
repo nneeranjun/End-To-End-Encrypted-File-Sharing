@@ -85,8 +85,9 @@ func bytesToUUID(data []byte) (ret uuid.UUID) {
 // The structure definition for a user record
 type User struct {
 	Username string
-	Salt[] byte
-	Password string
+	SaltHKDF[] byte
+	SaltPassword[] byte
+	Password[] byte
 	PrivateKeys map[string]string
 	//TODO: Maybe add files and access tokens???
 
@@ -116,16 +117,20 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userdataptr = &userdata
 
 	//TODO: This is a toy implementation.
-	userdata.Username = username
-	userdata.Password = password
+	userdata.Username = username //setting username
 	userdata.PrivateKeys = make(map[string]string) //initializing map
-	//generate random salt
-	var salt = userlib.RandomBytes(20)
+	//generate random salt for hkdf and password
+	var saltHKDF = userlib.RandomBytes(20)
+	var saltPass = userlib.RandomBytes(20)
 
-	userdata.Salt = salt
+	userdata.SaltHKDF = saltHKDF
+	userdata.SaltPassword = saltPass
 	//set password to be some sort of hash of the password with the salt
-	//TODO: Need to figure out how to store the password: userdata.Password = some Hash with salt
-	var hkdfKey = userlib.Argon2Key([]byte (password), salt, 32) //key generated to generate more keys using HKDF
+	var hashedPass = userlib.Argon2Key([]byte (password), saltPass, 32) //hashing password
+	userdata.Password = hashedPass //setting hashed password
+
+	var hkdfKey = userlib.Argon2Key([]byte (password), saltHKDF, 32) //key generated to generate more keys using HKDF
+
 	var macKey, _ = userlib.HashKDF(hkdfKey, []byte("mac")) //MAC key used for MAC-ing other keys
 	var symmEncKey, _ = userlib.HashKDF(hkdfKey, []byte("symmetric_encryption")) //symmetric key used for encryption
 	macKey = macKey[:16]
@@ -135,23 +140,22 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	var pk userlib.PKEEncKey
 	var sk userlib.PKEDecKey
 	pk, sk, _ = userlib.PKEKeyGen()
-	pk = pk //garbage
 
 
-	var mac, _ = userlib.HMACEval(macKey, []byte("This is " + username +(sk.KeyType))) //MAC used for secret key generated above (Do we include SK here)?
+	var macSK, _ = userlib.HMACEval(macKey, []byte("This is " + username +(sk.KeyType))) //MAC used for secret key generated above (Do we include SK here)?
 	var encSK = string(userlib.SymEnc(symmEncKey, userlib.RandomBytes(16), sk.PrivKey.D.Bytes())) //encrypting the secret key so attackers can't see
-	userdata.PrivateKeys[encSK] = string(mac) //mapping private key to mac for verification
+	userdata.PrivateKeys[encSK] = string(macSK) //mapping private key to mac for verification
 
-	e := userlib.KeystoreSet(username, pk) //storing public in Keystore
+	e := userlib.KeystoreSet(username, pk) //storing public key in Keystore
 	//error if username already exists
 	if e != nil {
 		return nil, e
 	}
 	//Jsonify user struct data and store in DataStore
-	var mac_username, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
-	var UUID = bytesToUUID(mac_username) //generate UUID from Hash of username
+	var macUsername, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
+	var UUID = bytesToUUID(macUsername)                             //generate UUID from Hash of username
 
-	var data, _ = json.Marshal(userdata) //
+	var data, _ = json.Marshal(userdata)
 	userlib.DatastoreSet(UUID, data)
 
 	//End of toy implementation
