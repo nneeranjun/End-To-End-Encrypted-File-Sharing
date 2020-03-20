@@ -142,7 +142,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	pk, sk, _ = userlib.PKEKeyGen()
 
 	print("ok")
-	
+
 	var macSK, _ = userlib.HMACEval(macKey, []byte("This is " + username +(sk.KeyType))) //MAC used for secret key generated above (Do we include SK here)?
 	var encSK = string(userlib.SymEnc(symmEncKey, userlib.RandomBytes(16), sk.PrivKey.D.Bytes())) //encrypting the secret key so attackers can't see
 	userdata.PrivateKeys[encSK] = string(macSK) //mapping private key to mac for verification
