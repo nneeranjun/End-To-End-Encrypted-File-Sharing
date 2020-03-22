@@ -12,25 +12,26 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/proj2.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="544">
-              <caret line="336" column="46" selection-start-line="336" selection-start-column="46" selection-end-line="336" selection-end-column="46" />
+            <state relative-caret-position="171">
+              <caret line="376" column="46" selection-start-line="376" selection-start-column="46" selection-end-line="376" selection-end-column="46" />
               <folding>
                 <element signature="e#1288#2215#0" />
                 <element signature="e#2346#2401#0" />
                 <element signature="e#2427#2429#0" />
+                <element signature="e#7522#7533#0" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/proj2_test.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="297">
-              <caret line="60" column="16" lean-forward="true" selection-start-line="60" selection-start-column="16" selection-end-line="60" selection-end-column="16" />
+            <state relative-caret-position="422">
+              <caret line="64" selection-start-line="64" selection-end-line="64" />
             </state>
           </provider>
         </entry>
@@ -68,6 +69,9 @@
       <find>unmarshal</find>
       <find>append</find>
       <find>getUser</find>
+      <find>File Map</find>
+      <find>File Mapclea</find>
+      <find>json.Marshal</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -77,13 +81,13 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/proj2.go" />
         <option value="$PROJECT_DIR$/proj2_test.go" />
+        <option value="$PROJECT_DIR$/proj2.go" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds">
-    <option name="x" value="145" />
+  <component name="ProjectFrameBounds" extendedState="6">
+    <option name="x" value="93" />
     <option name="y" value="23" />
     <option name="width" value="1680" />
     <option name="height" value="972" />
@@ -249,7 +253,7 @@
     </history-entry>
   </component>
   <component name="ToolWindowManager">
-    <frame x="145" y="23" width="1680" height="972" extended-state="0" />
+    <frame x="0" y="23" width="1680" height="972" extended-state="6" />
     <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.046683047" />
@@ -265,7 +269,7 @@
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Database Changes" order="8" />
       <window_info anchor="bottom" id="Version Control" order="9" />
-      <window_info anchor="bottom" id="Terminal" order="10" weight="0.27293843" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="10" visible="true" weight="0.38908246" />
       <window_info anchor="bottom" id="Event Log" order="11" side_tool="true" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -302,22 +306,23 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/proj2_test.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="422">
+          <caret line="64" selection-start-line="64" selection-end-line="64" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/proj2.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="544">
-          <caret line="336" column="46" selection-start-line="336" selection-start-column="46" selection-end-line="336" selection-end-column="46" />
+        <state relative-caret-position="171">
+          <caret line="376" column="46" selection-start-line="376" selection-start-column="46" selection-end-line="376" selection-end-column="46" />
           <folding>
             <element signature="e#1288#2215#0" />
             <element signature="e#2346#2401#0" />
             <element signature="e#2427#2429#0" />
+            <element signature="e#7522#7533#0" />
           </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/proj2_test.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="297">
-          <caret line="60" column="16" lean-forward="true" selection-start-line="60" selection-start-column="16" selection-end-line="60" selection-end-column="16" />
         </state>
       </provider>
     </entry>

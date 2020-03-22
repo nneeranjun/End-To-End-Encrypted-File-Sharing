@@ -101,6 +101,8 @@ type User struct {
 	DSSignKey userlib.DSSignKey
 	MAC[] byte
 	FileMap map[string][]byte
+	FileNames string
+	FileContents []byte
 	//TODO: Add files and access tokens
 
 
@@ -161,7 +163,10 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userdata.SecretKeyEnc = sk
 
 	// TODO: Make empty File map? For now, assuming we add file map in StoreFile.
-	//userdata.FileMap = make(map[string][]byte)
+	userdata.FileMap = make(map[string][]byte)
+	userdata.FileNames = ""
+	userdata.FileContents = nil
+
 
 	var UUID = bytesToUUID(macUsername)
 	//Marshal the userdata struct, so it's JSON encoded.
@@ -170,7 +175,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	var encryptedData = userlib.SymEnc(symmetricKey, userlib.RandomBytes(16), data)
 	//mac user data
 	var MAC, _ = userlib.HMACEval(macKey, encryptedData)
-
+	userdata.MAC = MAC
 
 	var dataPlusMAC =  append(encryptedData[:], MAC[:]...) //appending MAC to encrypted user struct
 	//print(len(x) == len(encryptedData) + len(MAC))
@@ -196,6 +201,9 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	if ok == false {
 		return nil, errors.New("Username/Password invalid")
 	}
+	println(" ")
+	println("AT GET USER")
+	println("LENGTH OF DATA: ", data)
 	var ciphertext = data[0: len(data) - 64]
 	var macRec = data[len(data) - 64: ] //Mac received from Datastore
 	var macComp, _ = userlib.HMACEval(macKey, ciphertext) //recompute MAC
@@ -207,7 +215,22 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	//Data is now verified, can decrypt data
 	var decryptedData = userlib.SymDec(symmKey, ciphertext)
 	_ = json.Unmarshal(decryptedData, userdataptr)
+	println("Printing user struct fields after calling storefile: ")
+	println("username: ", userdataptr.Username)
+	println("password: ", userdataptr.Password)
+	println("MAC: ", userdataptr.MAC)
+	println("File name: ", userdataptr.FileNames)
+	println("File contents: ", userdataptr.FileContents)
 
+	println("File Map: ", userdataptr.FileMap)
+	zeroKey := make([]byte, 16) //byte array of 16 0's
+	macFilename, _ := userlib.HMACEval(zeroKey, []byte("file1")) // HashFunction(filename) = HMAC(0, filename)
+	println("filename: ", string(macFilename))
+	v, ok := userdataptr.FileMap[string(macFilename)]
+	println("KEY SHOULD BE THERE! (EQUALS TRUE!) : ", ok)
+	println("filename value: ", v)
+	println("END OF GET USER")
+	println("")
 	return userdataptr, nil
 }
 
@@ -216,49 +239,59 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 // The plaintext of the filename + the plaintext and length of the filename 
 // should NOT be revealed to the datastore!
 func (userdata *User) StoreFile(filename string, data []byte) {
-
 	//TODO: This is a toy implementation.
 	//encrypt and MAC the file
 	username := userdata.Username
 	password := userdata.Password
-	fileMap := make(map[string][]byte)
+	//fileMap := make(map[string][]byte)
 
 	macKey, symmKey := encryptionHelper([]byte(password), []byte(username))
 
 	// Use hash function to hide the filename length.
 	zeroKey := make([]byte, 16) //byte array of 16 0's
 	macFilename, _ := userlib.HMACEval(zeroKey, []byte(filename)) // HashFunction(filename) = HMAC(0, filename)
-
+	println("MAC Filename: ", string(macFilename))
 	//TODO: If the file has been shared with others, the file must stay shared.
 	//Marshal the file contents, so it's JSON encoded.
+	println("Data in string form: ", string(data))
 	var marshalFileData, _ = json.Marshal(data)
 	//encrypt file contents
 	var encryptedFileData = userlib.SymEnc(symmKey, userlib.RandomBytes(16), marshalFileData)
 	//mac file contents
 	var fileDataMAC, _ = userlib.HMACEval(macKey, encryptedFileData)
 	var encMACFile =  append(encryptedFileData[:], fileDataMAC[:]...) //appending MAC to encrypted file contents
-	fileMap[string(macFilename)] = encMACFile
+	userdata.FileMap[string(macFilename)] = encMACFile
+
 	//update FileMap
-	userdata.FileMap = fileMap
+	//for k,v := range fileMap {
+	//	userdata.FileMap[k] = v
+	//}
+
 	//get user data from DataStore.
-	_, err := GetUser(username, password)
-	if err != nil {
-		print("Error occurred when trying to get user data from DataStore. ")
-		return
-	}
-	newUserData := userdata
+	//_, err := GetUser(username, password)
+	//if err != nil {
+	//	print("Error occurred when trying to get user data from DataStore. ")
+	//	return
+	//}
+
+	println("FILE CONTENTS EXIST UP UNTIL HERE!")
+	userdata.FileNames = string(macFilename)
+	userdata.FileContents = encMACFile
 
 	var macUsername, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
 	var UUID = bytesToUUID(macUsername)
 	//Marshal the userdata struct, so it's JSON encoded.
-	var newUserDataMarshalled, _ = json.Marshal(newUserData)
+	var newUserData, _ = json.Marshal(userdata)
 	//encrypt user data
-	var encryptedData = userlib.SymEnc(symmKey, userlib.RandomBytes(16), newUserDataMarshalled)
+	var encryptedData = userlib.SymEnc(symmKey, userlib.RandomBytes(16), newUserData)
 	//mac user data
 	var MAC, _ = userlib.HMACEval(macKey, encryptedData)
-	var dataPlusMAC =  append(encryptedData[:], MAC[:]...) //appending MAC to encrypted user struct
+	var dataPlusMAC = append(encryptedData[:], MAC[:]...) //appending MAC to encrypted user struct
+	println("Encrypted user struct with newly added file: ", dataPlusMAC)
 	userlib.DatastoreSet(UUID, dataPlusMAC)
 	//End of toy implementation
+	println("")
+
 
 	return
 }
@@ -274,7 +307,9 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 	currentUserData, err := GetUser(username, password)
 	fileMap := currentUserData.FileMap
 
-	existingFileContents, present := fileMap[filename]
+	zeroKey := make([]byte, 16) //byte array of 16 0's
+	macFilename, _ := userlib.HMACEval(zeroKey, []byte(filename)) // HashFunction(filename) = HMAC(0, filename)
+	existingFileContents, present := fileMap[string(macFilename)]
 	// If the file does not exist, return an error.
 	if present == false {
 		return errors.New("File does not exist!")
@@ -317,13 +352,25 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 //
 // It should give an error if the file is corrupted in any way.
 func (userdata *User) LoadFile(filename string) (data []byte, err error) {
-
+	println("AT LOAD FILE")
 	username := userdata.Username
 	password := userdata.Password
 	currentUserData, err := GetUser(username, password)
-	fileMap := currentUserData.FileMap
-	existingFileContents, present := fileMap[filename]
-	if present == false {
+
+	//fileMap := currentUserData.FileMap
+
+	zeroKey := make([]byte, 16) //byte array of 16 0's
+	macFilename, _ := userlib.HMACEval(zeroKey, []byte(filename)) // HashFunction(filename) = HMAC(0, filename)
+	println("MAC Filename: ", string(macFilename))
+	//println("fileMap[string(macFilename)]: ", fileMap[string(macFilename)])
+	existingFileContents := currentUserData.FileContents
+	_, symmKey := encryptionHelper([]byte(password), []byte(username))
+	var decryptedData = userlib.SymDec(symmKey, existingFileContents)
+	println("Decrypted File Contents: ", decryptedData)
+	//if present == false {
+	//	return nil, errors.New(strings.ToTitle("File not found!"))
+	//}
+	if currentUserData.FileNames == "" {
 		return nil, errors.New(strings.ToTitle("File not found!"))
 	} else {	//Loads the latest version of a file, if it exists.
 		//get existing file data and MAC in plaintext form.
@@ -338,6 +385,7 @@ func (userdata *User) LoadFile(filename string) (data []byte, err error) {
 		}
 		//Data is now verified, can decrypt data
 		var decryptedData = userlib.SymDec(symmKey, existingFileData)
+		print("DECRYPTED DATA: ", decryptedData)
 		json.Unmarshal(decryptedData, &data)
 		return data, nil
 
