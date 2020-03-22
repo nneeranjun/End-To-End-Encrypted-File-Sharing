@@ -82,22 +82,18 @@ func bytesToUUID(data []byte) (ret uuid.UUID) {
 	return
 }
 
-// The structure definition for a user record
-type User2 struct {
-	Username string
-	MacUsername[] byte
-	SaltHKDF[] byte
-	SaltPassword[] byte
-	Password[] byte
-	PrivateKeys map[string]string
-	//TODO: Maybe add files and access tokens???
-
-
-	// You can add other fields here if you want...
-	// Note for JSON to marshal/unmarshal, the fields need to
-	// be public (start with a capital letter)
+func encryptionHelper(password []byte, username []byte) (macKey []byte, symmKey []byte) {
+	//MAC key generated for MAC'ing
+	var hkdfKey = userlib.Argon2Key(password, username, 32)
+	macKey, _ = userlib.HashKDF(hkdfKey, []byte("mac"))
+	macKey = macKey[:16]
+	//Symmetric key generated used for symmetric encryption
+	symmKey, _ = userlib.HashKDF(hkdfKey, []byte("symmetric key"))
+	symmKey = symmKey[:16]
+	return macKey, symmKey
 }
 
+// The structure definition for a user record
 type User struct {
 	Username string
 	Password string
@@ -112,8 +108,6 @@ type User struct {
 	// Note for JSON to marshal/unmarshal, the fields need to
 	// be public (start with a capital letter)
 }
-
-
 
 // This creates a user.  It will only be called once for a user
 // (unless the keystore and datastore are cleared during testing purposes)
@@ -136,63 +130,7 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	userdataptr = &userdata
 
 	//TODO: This is a toy implementation.
-	/*
-	userdata.Username = username //setting username
-	userdata.PrivateKeys = make(map[string]string) //initializing map
-	//generate random salt for hkdf and password
-	var saltHKDF = userlib.RandomBytes(20)
-	var saltPass = userlib.RandomBytes(20)
-
-	userdata.SaltHKDF = saltHKDF
-	userdata.SaltPassword = saltPass
-	//set password to be some sort of hash of the password with the salt
-	var hashedPass = userlib.Argon2Key([]byte (password), saltPass, 32) //hashing password
-	userdata.Password = hashedPass //setting hashed password
-
-	var hkdfKey = userlib.Argon2Key([]byte (password), saltHKDF, 32) //key generated to generate more keys using HKDF
-
-	var macKey, _ = userlib.HashKDF(hkdfKey, []byte("mac")) //MAC key used for MAC-ing other keys
-	var symmEncKey, _ = userlib.HashKDF(hkdfKey, []byte("symmetric_encryption")) //symmetric key used for encryption
-	macKey = macKey[:16]
-	symmEncKey = symmEncKey[:16]
-
-	//Generate public & private keys
-	var pk userlib.PKEEncKey
-	var sk userlib.PKEDecKey
-	pk, sk, _ = userlib.PKEKeyGen()
-
-	var macSK, _ = userlib.HMACEval(macKey, []byte("This is " + username +(sk.KeyType))) //MAC used for secret key generated above (Do we include SK here)?
-	var encSK = string(userlib.SymEnc(symmEncKey, userlib.RandomBytes(16), sk.PrivKey.D.Bytes())) //encrypting the secret key so attackers can't see
-	userdata.PrivateKeys[encSK] = string(macSK) //mapping private key to mac for verification
-
-	e := userlib.KeystoreSet(username, pk) //storing public key in Keystore
-	//error if username already exists
-	if e != nil {
-		return nil, e
-	}
-	//Jsonify user struct data and store in DataStore
-	var all_zeroes = make([]byte, 16)
-	var macUsername, _ = userlib.HMACEval(all_zeroes, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
-	userdata.MacUsername = macUsername
-	var UUID = bytesToUUID(macUsername)                             //generate UUID from Hash of username
-	//update our struct here
-
-	var data, _ = json.Marshal(userdata)
-	userlib.DatastoreSet(UUID, data)
-
-	//End of toy implementation
-	*/
-
-	//******************* START OF NEW IMPLEMENTATION ********************************************************************
-	var hkdfKey = userlib.Argon2Key([]byte (password), []byte(username), 32) //key generated to generate more keys using HKDF
-
-	//MAC key generated for MAC'ing
-	var macKey, _ = userlib.HashKDF(hkdfKey, []byte("mac"))
-	macKey = macKey[:16]
-
-	//Symmetric key generated used for symmetric encryption
-	var symmetricKey, _ = userlib.HashKDF(hkdfKey, []byte("symmetric key"))
-	symmetricKey = symmetricKey[:16]
+	macKey, symmetricKey := encryptionHelper([]byte(password), []byte(username))
 
 	//Generate public & private keys for public key crypto. RSA Encryption guarantees confidentiality for asymmetric-keys.
 	var pk userlib.PKEEncKey
@@ -216,7 +154,6 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 
 	var macUsername, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
 
-
 	//Storing username, secret key, and signing key in user struct
 	userdata.Username = username
 	userdata.Password = password
@@ -227,8 +164,6 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	//userdata.FileMap = make(map[string][]byte)
 
 	var UUID = bytesToUUID(macUsername)
-
-
 	//Marshal the userdata struct, so it's JSON encoded.
 	var data, _ = json.Marshal(userdata)
 	//encrypt user data
@@ -247,8 +182,6 @@ func InitUser(username string, password string) (userdataptr *User, err error) {
 	return &userdata, nil
 }
 
-
-
 // This fetches the user information from the Datastore.  It should
 // fail with an error if the user/password is invalid, or if the user
 // data was corrupted, or if the user can't be found.
@@ -256,43 +189,13 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	var userdata User
 	userdataptr = &userdata
 
-	/*var all_zeroes = make([]byte, 16)
-
-	var macUsername, _ = userlib.HMACEval(all_zeroes, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
-	userdata.MacUsername = macUsername
-	var UUID = bytesToUUID(macUsername)
-
-	//var hkdfKey = userlib.Argon2Key([]byte (password), saltHKDF, 32) //key generated to generate more keys using HKDF
-	//var macKey, _ = userlib.HashKDF(hkdfKey, []byte("mac")) //MAC key used for MAC-ing other keys
-
-	var userStruct, ok = userlib.DatastoreGet(UUID)
-	if !ok {
-		return nil, errors.New("username does not exist")
-	}
-
-	_ = json.Unmarshal(userStruct, &userdata)
-	print("username: " + userdata.Username)
-
-	//var userStruct_username = userStruct.Username
-	//
-	//if username != userStruct. or
-*/
-	//******************* START OF NEW IMPLEMENTATION ********************************************************************
-	var hkdfKey = userlib.Argon2Key([]byte (password), []byte(username), 32) //key generated to generate more keys using HKDF
-
-	var macKey, _ = userlib.HashKDF(hkdfKey, []byte("mac")) //mac key to recover UUID
-	macKey = macKey[:16]
-
-	var symmKey, _ = userlib.HashKDF(hkdfKey, []byte("symmetric key"))
-	symmKey = symmKey[:16]
-
+	macKey, symmKey := encryptionHelper([]byte(password), []byte(username))
 	var macUsername, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
 	var UUID = bytesToUUID(macUsername)
 	var data, ok = userlib.DatastoreGet(UUID)
 	if ok == false {
 		return nil, errors.New("Username/Password invalid")
 	}
-	//TODO: MAKE SURE Math is right
 	var ciphertext = data[0: len(data) - 64]
 	var macRec = data[len(data) - 64: ] //Mac received from Datastore
 	var macComp, _ = userlib.HMACEval(macKey, ciphertext) //recompute MAC
@@ -302,10 +205,8 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	}
 
 	//Data is now verified, can decrypt data
-
 	var decryptedData = userlib.SymDec(symmKey, ciphertext)
 	_ = json.Unmarshal(decryptedData, userdataptr)
-	//******************* END OF NEW IMPLEMENTATION ********************************************************************
 
 	return userdataptr, nil
 }
@@ -317,30 +218,12 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 func (userdata *User) StoreFile(filename string, data []byte) {
 
 	//TODO: This is a toy implementation.
-	//We will hash the filename using SHA256 to hide the filename length and then
-	// encrypt the file contents and sign this file using the private key generated
-	// from the Digital Signature library of the person who is uploading it.
-
 	//encrypt and MAC the file
-
-	//if err != nil {
-	//
-	//} else {
-	//	if userData.
-	//}
-
-
-	username := []byte(userdata.Username)
-	password := []byte(userdata.Password)
+	username := userdata.Username
+	password := userdata.Password
 	fileMap := make(map[string][]byte)
 
-	//make mac key
-	var hkdfKey = userlib.Argon2Key(password, username, 32)
-	var macKey, _ = userlib.HashKDF(hkdfKey, []byte("mac"))
-	macKey = macKey[:16]
-	//make symmetric key
-	var symmKey, _ = userlib.HashKDF(hkdfKey, []byte("symmetric key"))
-	symmKey = symmKey[:16]
+	macKey, symmKey := encryptionHelper([]byte(password), []byte(username))
 
 	// Use hash function to hide the filename length.
 	zeroKey := make([]byte, 16) //byte array of 16 0's
@@ -358,14 +241,14 @@ func (userdata *User) StoreFile(filename string, data []byte) {
 	//update FileMap
 	userdata.FileMap = fileMap
 	//get user data from DataStore.
-	_, err := GetUser(userdata.Username, userdata.Password)
+	_, err := GetUser(username, password)
 	if err != nil {
-		print("Error occurred. ")
+		print("Error occurred when trying to get user data from DataStore. ")
 		return
 	}
 	newUserData := userdata
 
-	var macUsername, _ = userlib.HMACEval(macKey, username) //Hash (MAC) username so that we can use bytesToUUID
+	var macUsername, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
 	var UUID = bytesToUUID(macUsername)
 	//Marshal the userdata struct, so it's JSON encoded.
 	var newUserDataMarshalled, _ = json.Marshal(newUserData)
@@ -386,7 +269,48 @@ func (userdata *User) StoreFile(filename string, data []byte) {
 // existing file, but only whatever additional information and
 // metadata you need.
 func (userdata *User) AppendFile(filename string, data []byte) (err error) {
-	return
+	username := userdata.Username
+	password := userdata.Password
+	currentUserData, err := GetUser(username, password)
+	fileMap := currentUserData.FileMap
+
+	existingFileContents, present := fileMap[filename]
+	// If the file does not exist, return an error.
+	if present == false {
+		return errors.New("File does not exist!")
+	} else {	//Appends to the file, if it exists.
+		//get existing file data and MAC
+		existingFileData := existingFileContents[:len(existingFileContents)-64]
+		existingFileMAC := existingFileContents[len(existingFileContents)-64:]
+		//encrypt data you want to append to existing file contents.
+		macKey, symmKey := encryptionHelper([]byte(password), []byte(username))
+		var marshalFileData, _ = json.Marshal(data)
+		// new file data and MAC we want to append
+		var newFileData = userlib.SymEnc(symmKey, userlib.RandomBytes(16), marshalFileData)
+		var newFileMAC, _ = userlib.HMACEval(macKey, newFileData)
+		// appending new and old file data and MACs.
+		combinedFile := append(existingFileData[:], newFileData[:]...)
+		combinedMAC := append(existingFileMAC[:], newFileMAC[:]...)
+		zeroKey := make([]byte, 16) //byte array of 16 0's
+		combinedMAC, _ = userlib.HMACEval(zeroKey, combinedMAC)
+		combinedFileContents :=  append(combinedFile[:], combinedMAC[:]...)
+		fileMap[filename] = combinedFileContents
+		currentUserData.FileMap = fileMap
+		//get UUID
+		var macUsername, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
+		var UUID = bytesToUUID(macUsername)
+		// re-encrypt user struct again.
+		// HELP! This is hella inefficient though, but it seems like the append efficiency requirement just refers to append.
+		var marshalUserData, _ = json.Marshal(currentUserData)
+		var encryptedData = userlib.SymEnc(symmKey, userlib.RandomBytes(16), marshalUserData)
+		var MAC, _ = userlib.HMACEval(macKey, encryptedData)
+		var dataPlusMAC =  append(encryptedData[:], MAC[:]...) //appending MAC to encrypted user struct
+		userlib.DatastoreSet(UUID, dataPlusMAC)
+		return nil
+	}
+	//You are not required to check the integrity of the existing file (integrity verification is allowed but not required).
+	// If you detect an integrity violation or the append operation cannot proceed for any reason, trigger an error.
+	return errors.New("Integrity violation or couldn't append. ")
 }
 
 // This loads a file from the Datastore.
@@ -394,14 +318,48 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 // It should give an error if the file is corrupted in any way.
 func (userdata *User) LoadFile(filename string) (data []byte, err error) {
 
-	//TODO: This is a toy implementation.
-	UUID, _ := uuid.FromBytes([]byte(filename + userdata.Username)[:16])
-	packaged_data, ok := userlib.DatastoreGet(UUID)
-	if !ok {
+	username := userdata.Username
+	password := userdata.Password
+	currentUserData, err := GetUser(username, password)
+	fileMap := currentUserData.FileMap
+	existingFileContents, present := fileMap[filename]
+	if present == false {
 		return nil, errors.New(strings.ToTitle("File not found!"))
+	} else {	//Loads the latest version of a file, if it exists.
+		//get existing file data and MAC in plaintext form.
+		existingFileData := existingFileContents[:len(existingFileContents)-64]
+		existingFileMAC := existingFileContents[len(existingFileContents)-64:]
+		//get mac and symm keys.
+		macKey, symmKey := encryptionHelper([]byte(password), []byte(username))
+		var recomputedFileMAC, _ = userlib.HMACEval(macKey, existingFileData) //recompute MAC
+
+		if userlib.HMACEqual(existingFileMAC, recomputedFileMAC) == false {
+			return nil, errors.New("data corrupted")
+		}
+		//Data is now verified, can decrypt data
+		var decryptedData = userlib.SymDec(symmKey, existingFileData)
+		json.Unmarshal(decryptedData, &data)
+		return data, nil
+
+		return
 	}
-	json.Unmarshal(packaged_data, &data)
-	return data, nil
+
+
+
+	//var macUsername, _ = userlib.HMACEval(macKey, []byte(username)) //Hash (MAC) username so that we can use bytesToUUID
+	//var UUID = bytesToUUID(macUsername)
+	//packaged_data, ok := userlib.DatastoreGet(UUID)
+	//var newFileData = userlib.SymDec(symmKey, packaged_data)
+
+
+	//TODO: This is a toy implementation.
+	//UUID, _ := uuid.FromBytes([]byte(filename + userdata.Username)[:16])
+	//packaged_data, ok := userlib.DatastoreGet(UUID)
+	//if !ok {
+	//	return nil, errors.New(strings.ToTitle("File not found!"))
+	//}
+	//json.Unmarshal(packaged_data, &data)
+	//return data, nil
 	//End of toy implementation
 
 	return
