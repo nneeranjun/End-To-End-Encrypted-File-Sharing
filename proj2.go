@@ -119,10 +119,11 @@ type User struct {
 type AccessToken struct {
 	 SymmetricKey[] byte
 	 UniqueIdentifier[] byte
+	 MacKey[] byte
 }
 
 type File struct {
-	Contents[] byte
+	Contents[][] byte
 	//SharingTree SharingTree
 }
 
@@ -130,7 +131,9 @@ type File struct {
 func (user *User) GenerateAccessToken(filename string) (accessToken AccessToken){
 	hkdfKey := getHKDFKey([]byte(user.Username), []byte(user.Password))
 	symmKey, _ := userlib.HashKDF(hkdfKey, []byte(filename)) //TODO: this could be repeating for the same filename!
-	uI := userlib.RandomBytes(20)
+	uI := userlib.RandomBytes(16)
+	macKey := userlib.RandomBytes(16)
+	accessToken.MacKey = macKey
 	accessToken.SymmetricKey = symmKey
 	accessToken.UniqueIdentifier = uI
 	return accessToken
@@ -282,29 +285,34 @@ func (userdata *User) StoreFile(filename string, data []byte) {
 	//******************************START NEW IMPLEMENTATION ***************************************
 	var fileMapData map[string] File
 
-	filesUUID, _ := uuid.FromBytes([]byte("Files"))
-	data, ok := userlib.DatastoreGet(filesUUID)
 	//TODO: Verify integrity of map
 	//TODO: decrypt map
-	_ = json.Unmarshal(data, fileMapData) //getting fileMap map
 
-	if !ok {
-		return //file map has been deleted
-	}
 
 
 	accessToken := userdata.GenerateAccessToken(filename) //generate access token
+
+	//Encrypt File Contents
+	encrypedContents := userlib.SymEnc(accessToken.SymmetricKey, userlib.RandomBytes(16), data)
+	encMacContents, _ := userlib.HMACEval(accessToken.MacKey, encrypedContents)
+
+
+
+	//Mac File Contents
+
+	//Create File
+
+	//Store in DataStore
+
+
+
+
 	userdata.AccessTokenMap[filename] = accessToken //store access token associated with filename
-	
+
 	fileMapData[string(accessToken.UniqueIdentifier)] = data
-	//
 
 
-	fileMapData[string(accessToken.UniqueIdentifier)] =
 
-
-	accessToken := userdata.GenerateAccessToken(filename) //generate access token
-	userdata.AccessTokenMap[filename] = accessToken //store access token associated with filename
 
 
 
