@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="804f47ae-ce5e-4ac3-9ff4-4ce71d1360fe" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/proj2.go" beforeDir="false" afterPath="$PROJECT_DIR$/proj2.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -15,8 +15,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/proj2.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="270">
-              <caret line="275" column="41" selection-start-line="275" selection-start-column="41" selection-end-line="275" selection-end-column="41" />
+            <state relative-caret-position="240">
+              <caret line="386" column="2" lean-forward="true" selection-start-line="386" selection-start-column="2" selection-end-line="386" selection-end-column="2" />
               <folding>
                 <element signature="e#2346#2401#0" />
               </folding>
@@ -75,6 +75,7 @@
     </option>
   </component>
   <component name="ProjectFrameBounds">
+    <option name="x" value="-1" />
     <option name="y" value="23" />
     <option name="width" value="1440" />
     <option name="height" value="788" />
@@ -240,7 +241,7 @@
     </history-entry>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1440" height="788" extended-state="0" />
+    <frame x="-1" y="23" width="1440" height="788" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.047210302" />
@@ -288,8 +289,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/proj2.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="275" column="41" selection-start-line="275" selection-start-column="41" selection-end-line="275" selection-end-column="41" />
+        <state relative-caret-position="240">
+          <caret line="386" column="2" lean-forward="true" selection-start-line="386" selection-start-column="2" selection-end-line="386" selection-end-column="2" />
           <folding>
             <element signature="e#2346#2401#0" />
           </folding>
