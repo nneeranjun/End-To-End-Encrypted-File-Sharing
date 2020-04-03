@@ -362,6 +362,7 @@ func GetUser(username string, password string) (userdataptr *User, err error) {
 	var decryptedData = userlib.SymDec(symmKey, ciphertext)
 	_ = json.Unmarshal(decryptedData, userdataptr)
 
+
 	return userdataptr, nil
 }
 
@@ -425,6 +426,24 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 		return fileLoadErr
 	}
 	var encMACFileContents = unmarshalFile.Contents
+	var sharingTree = unmarshalFile.SharingTreeRoot
+
+	if !NodeExists(sharingTree, userdata.Username) {
+		_, ok := userdata.AccessTokenMap[filename]
+		if ok {
+			delete(userdata.AccessTokenMap, filename)
+			macKey, symmKey := encryptionHelper([]byte(userdata.Password), []byte(userdata.Username))
+			var macUsername, _ = userlib.HMACEval(macKey, []byte(userdata.Username)) //Hash (MAC) username so that we can use bytesToUUID
+			var UUID = bytesToUUID(macUsername)
+			var data, _ = json.Marshal(userdata)
+			var encryptedData = userlib.SymEnc(symmKey, userlib.RandomBytes(16), data)
+			var MAC, _ = userlib.HMACEval(macKey, encryptedData)
+			var dataPlusMAC =  append(encryptedData, MAC...) //appending MAC to encrypted user struct
+			userlib.DatastoreSet(UUID, dataPlusMAC)
+		}
+		return errors.New(strings.ToTitle("Error: User doesn't have access to this file!"))
+	}
+
 	//encrypt and mac new data
 	encData := userlib.SymEnc(fileSymmKey, userlib.RandomBytes(16), data)
 	macData, macErr := userlib.HMACEval(fileMACKey, encData)
@@ -454,6 +473,10 @@ func (userdata *User) AppendFile(filename string, data []byte) (err error) {
 //
 // It should give an error if the file is corrupted in any way.
 func (userdata *User) LoadFile(filename string) (data []byte, err error) {
+	userdata, err = GetUser(userdata.Username, userdata.Password)
+	if err != nil {
+		return nil, err
+	}
 	fileUniqueID, fileSymmKey, fileMACKey := userdata.getAccessTokenFields(filename)
 	_, unmarshalFile, fileLoadErr := userdata.GetFile(filename, fileUniqueID)
 	//Error with loading file
@@ -462,7 +485,23 @@ func (userdata *User) LoadFile(filename string) (data []byte, err error) {
 	}
 	// Access file contents
 	encMACFileContents := unmarshalFile.Contents
+	var sharingTree = unmarshalFile.SharingTreeRoot
 
+	if !NodeExists(sharingTree, userdata.Username) {
+		_, ok := userdata.AccessTokenMap[filename]
+		if ok {
+			delete(userdata.AccessTokenMap, filename)
+			macKey, symmKey := encryptionHelper([]byte(userdata.Password), []byte(userdata.Username))
+			var macUsername, _ = userlib.HMACEval(macKey, []byte(userdata.Username)) //Hash (MAC) username so that we can use bytesToUUID
+			var UUID = bytesToUUID(macUsername)
+			var data, _ = json.Marshal(userdata)
+			var encryptedData = userlib.SymEnc(symmKey, userlib.RandomBytes(16), data)
+			var MAC, _ = userlib.HMACEval(macKey, encryptedData)
+			var dataPlusMAC =  append(encryptedData, MAC...) //appending MAC to encrypted user struct
+			userlib.DatastoreSet(UUID, dataPlusMAC)
+		}
+		return nil, errors.New(strings.ToTitle("Error: User doesn't have access to this file!"))
+	}
 	// Set up variables for iteration
 	numFiles := len(encMACFileContents)
 	var decryptedFile []byte
@@ -508,16 +547,44 @@ func (userdata *User) ShareFile(filename string, recipient string) (
 	if err != nil {
 		return
 	}
+	accessToken, ok := userdata.AccessTokenMap[filename]
+	if !ok {
+		return "", errors.New("User doesn't have access token")
+	}
 
-	//Generates an access token to be sent to the recipient.
-	accessTokenMap := userdata.AccessTokenMap //get access token map
-	accessToken := accessTokenMap[filename]
-	_, _, fileLoadErr := userdata.GetFile(filename, accessToken.UniqueIdentifier)
-
-	//If the file does not exist or sharing cannot complete due to malicious action, return an empty string and a non-nil error.
-	if fileLoadErr != nil  {	//File doesn't exist.
+	_, unmarshalFile, fileLoadErr := userdata.GetFile(filename, accessToken.UniqueIdentifier)
+	//Error with loading file
+	if fileLoadErr != nil  {
 		return "", fileLoadErr
 	}
+	// Access file contents
+	//encMACFileContents := unmarshalFile.Contents
+	var sharingTree = unmarshalFile.SharingTreeRoot
+
+	if !NodeExists(sharingTree, userdata.Username) {
+		_, ok := userdata.AccessTokenMap[filename]
+		if ok {
+			delete(userdata.AccessTokenMap, filename)
+			macKey, symmKey := encryptionHelper([]byte(userdata.Password), []byte(userdata.Username))
+			var macUsername, _ = userlib.HMACEval(macKey, []byte(userdata.Username)) //Hash (MAC) username so that we can use bytesToUUID
+			var UUID = bytesToUUID(macUsername)
+			var data, _ = json.Marshal(userdata)
+			var encryptedData = userlib.SymEnc(symmKey, userlib.RandomBytes(16), data)
+			var MAC, _ = userlib.HMACEval(macKey, encryptedData)
+			var dataPlusMAC =  append(encryptedData, MAC...) //appending MAC to encrypted user struct
+			userlib.DatastoreSet(UUID, dataPlusMAC)
+		}
+		return "", errors.New(strings.ToTitle("Error: User doesn't have access to this file!"))
+	}
+	//Generates an access token to be sent to the recipient.
+	//accessTokenMap := userdata.AccessTokenMap //get access token map
+	//accessToken := accessTokenMap[filename]
+	//_, _, fileLoadErr := userdata.GetFile(filename, accessToken.UniqueIdentifier)
+
+	//If the file does not exist or sharing cannot complete due to malicious action, return an empty string and a non-nil error.
+	/*if fileLoadErr != nil  {	//File doesn't exist.
+		return "", fileLoadErr
+	}*/
 
 	//get recipient PK and error checking
 	recipientPK, recipientPKExists := userlib.KeystoreGet(recipient + " " + "public key")
@@ -542,7 +609,7 @@ func (userdata *User) ShareFile(filename string, recipient string) (
 
 	return magic_string, nil
 
-	//TODO: Update sharing tree for both sender and recipient.
+
 }
 
 // Note recipient's filename can be different from the sender's filename.
@@ -578,13 +645,37 @@ func (userdata *User) ReceiveFile(filename string, sender string, magic_string s
 
 	//Unmarshal decrypted access token
 	var receivedAT AccessToken
-	json.Unmarshal(decAT, &receivedAT)
+	_ = json.Unmarshal(decAT, &receivedAT)
 
 	//Get user + update userstruct's access token map with received access token
 	userdata, getUserErr := GetUser(userdata.Username, userdata.Password)
 	if getUserErr != nil {
 		println("Can't get user")
 	}
+	_, ok := userdata.AccessTokenMap[filename]
+	if ok {
+		return errors.New("User already has access to  filename of same name.")
+	}
+
+	fileUUID, unmarshalFile, fileLoadErr := userdata.GetFile(filename, receivedAT.UniqueIdentifier)
+	//If the file does not exist or sharing cannot complete due to malicious action, return an empty string and a non-nil error.
+	if fileLoadErr != nil  {	//File doesn't exist.
+		return fileLoadErr
+	}
+	//TODO: Update sharing tree by adding sender and recipient.
+	var sharingTree = unmarshalFile.SharingTreeRoot
+	if !NodeExists(sharingTree, sender) {
+		return errors.New("error: Sender doesn't have access to this file")
+	}
+	if NodeExists(sharingTree, userdata.Username) {
+		return errors.New("error: Recipient already has access to this file")
+	}
+	AddNode(sharingTree, sender, userdata.Username)
+	marshalFile, _ := json.Marshal(unmarshalFile) //Marshall Data
+	//Store updated file in DataStore
+	userlib.DatastoreSet(fileUUID, marshalFile)
+
+	//update recipient's access token map with received access token
 	userdata.AccessTokenMap[filename] = receivedAT
 
 	//Save userstruct in datastore
@@ -602,9 +693,51 @@ func (userdata *User) ReceiveFile(filename string, sender string, magic_string s
 
 // Removes target user's access.
 func (userdata *User) RevokeFile(filename string, target_username string) (err error) {
+	userdata, err = GetUser(userdata.Username, userdata.Password)
+	if err != nil {
+		return err
+	}
+	accessToken, ok := userdata.AccessTokenMap[filename]
+	if !ok {
+		return errors.New("error: don't have access to filename")
+	}
+
+	fileUUID, unmarshalFile, fileLoadErr := userdata.GetFile(filename, accessToken.UniqueIdentifier)
+	if fileLoadErr != nil  {	//File doesn't exist.
+		return fileLoadErr
+	}
+	//TODO: Update sharing tree by adding sender and recipient.
+	var sharingTree = unmarshalFile.SharingTreeRoot
+	if sharingTree == nil {
+		return errors.New("error: no sharing tree for file")
+	}
+	if NodeExists(sharingTree, target_username) {
+		childNode := ReturnNode(sharingTree, target_username)
+		if childNode.Parent != sharingTree.Username {
+			//	Remove access token from target user’s access token map
+			return errors.New("error: user not a direct child of file creator")
+		} else {
+			isRemoved := RemoveNode(sharingTree, childNode.Username)
+			if !isRemoved {
+				return errors.New("error: can't revoke target user's access to the file")
+			}
+			marshalFile, _ := json.Marshal(unmarshalFile) //Marshall Data
+			//Store updated file in DataStore
+			userlib.DatastoreSet(fileUUID, marshalFile)
+		}
+	} else {
+		return errors.New("error: User does not have access to the file")
+	}
+	//Check sharing tree for the file
+	//If user is a direct child,
 
 
-
+	//(revocation) cannot complete due to malicious action -> return some other error
+	//Update datastore
+	//Update sharing tree by removing target user + everything it
+	//If user not in sharing tree, return errors.New(“User does not have access to the file”)
+	//If user not a direct child of original creator, then return errors.New(“User not a direct child of file creator!”)
+	//If no sharing tree for a file, return errors.New(“No sharing tree for file!”)
 
 	return
 }
