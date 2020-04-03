@@ -123,8 +123,83 @@ type AccessToken struct {
 
 type File struct {
 	Contents[][] byte
-	//SharingTree SharingTree
+	SharingTreeRoot *TreeNode
 }
+
+type TreeNode struct {
+	Username string
+	Children []*TreeNode
+	Parent   string
+}
+
+func NodeExists(currentNode *TreeNode, username string) (exists bool) {
+	if currentNode == nil {
+		return
+	} else if currentNode.Username == username {
+		return true
+	} else {
+		for i := 0; i < len(currentNode.Children); i++ {
+			if NodeExists(currentNode.Children[i], username) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func ReturnNode(currentNode *TreeNode, username string) (returnNode *TreeNode) {
+	if currentNode == nil {
+		return nil
+	}
+	if currentNode.Username == username {
+		return currentNode
+	}
+
+	for i := 0; i < len(currentNode.Children); i++ {
+		node := ReturnNode(currentNode.Children[i], username)
+		if node != nil {
+			return node
+		}
+	}
+
+	return nil
+}
+
+func AddNode(currentNode *TreeNode, parent string, username string) (worked bool) {
+	if NodeExists(currentNode, parent) {
+		node := ReturnNode(currentNode, parent)
+		node.Children = append(node.Children, &TreeNode{username, nil, node.Username})
+		return true
+	} else {
+		return false
+	}
+}
+
+func RemoveNode(currentNode *TreeNode, username string) (worked bool) {
+	if NodeExists(currentNode, username) {
+		node := ReturnNode(currentNode, username)
+		if node.Parent != "" {
+			parentNode := ReturnNode(currentNode, node.Parent)
+			indexRemove := -1
+			for i := 0; i < len(parentNode.Children); i++ {
+				if parentNode.Children[i].Username == username {
+					indexRemove = i
+				}
+			}
+			if indexRemove != -1 {
+				parentNode.Children = append(parentNode.Children[:indexRemove], parentNode.Children[indexRemove+1:]...)
+				return true
+			}
+			return false
+		}
+		return false
+	} else {
+		return false
+	}
+}
+
+
+
 
 //Generates a unique access token object for a filename
 func (user *User) GenerateAccessToken(filename string) (accessToken AccessToken){
@@ -315,11 +390,9 @@ func (userdata *User) StoreFile(filename string, data []byte) {
 	MAC, _ := userlib.HMACEval(accessToken.MacKey, encryptedContents)
 	fileDataPlusMAC := append(encryptedContents[:], MAC[:]...)
 
-	//Create File
+	//Create File with Sharing Tree
 	fileContents := [][]byte{fileDataPlusMAC}
-	file := File{Contents: fileContents}
-
-	//TODO: Need to make SharingTree
+	file := File{Contents: fileContents, SharingTreeRoot: &TreeNode{Username: userdata.Username, Children: nil, Parent: ""}}
 
 	marshalledData, _ := json.Marshal(file) //Marshall Data
 	fileUUID, _:= uuid.FromBytes(accessToken.UniqueIdentifier) //Generate UUID from unique identifier
