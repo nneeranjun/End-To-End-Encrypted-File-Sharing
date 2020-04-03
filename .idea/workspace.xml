@@ -4,7 +4,6 @@
     <list default="true" id="804f47ae-ce5e-4ac3-9ff4-4ce71d1360fe" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/proj2.go" beforeDir="false" afterPath="$PROJECT_DIR$/proj2.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/proj2_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/proj2_test.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -17,8 +16,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/proj2.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1476">
-              <caret line="298" column="5" lean-forward="true" selection-start-line="298" selection-start-column="5" selection-end-line="298" selection-end-column="5" />
+            <state relative-caret-position="5817">
+              <caret line="307" column="5" lean-forward="true" selection-start-line="307" selection-start-column="5" selection-end-line="307" selection-end-column="5" />
             </state>
           </provider>
         </entry>
@@ -36,8 +35,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>bytesTo</find>
-      <find>DatastoreSet</find>
       <find>some useful things</find>
       <find>userdataptr</find>
       <find>symmetricKey</find>
@@ -60,6 +57,14 @@
       <find>Unmarshal</find>
       <find>datastoreSet</find>
       <find>encryptionHelper</find>
+      <find>err</find>
+      <find>16 bytes</find>
+      <find>Error: File UUID byte slice does not have a length of 16!</find>
+      <find>GetFile</find>
+      <find>Length of</find>
+      <find>UUID IN GenerateAccesstoken:</find>
+      <find>Length</find>
+      <find>length of map</find>
     </findStrings>
   </component>
   <component name="GOROOT" path="/usr/local/go" />
@@ -74,10 +79,11 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
-    <option name="y" value="23" />
-    <option name="width" value="1440" />
-    <option name="height" value="795" />
+  <component name="ProjectFrameBounds">
+    <option name="x" value="-1122" />
+    <option name="y" value="125" />
+    <option name="width" value="1911" />
+    <option name="height" value="971" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
@@ -293,17 +299,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/proj2.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1476">
-          <caret line="298" column="5" lean-forward="true" selection-start-line="298" selection-start-column="5" selection-end-line="298" selection-end-column="5" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/proj2_test.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="987">
           <caret line="57" column="5" selection-start-line="57" selection-start-column="5" selection-end-line="57" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/proj2.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="5817">
+          <caret line="307" column="5" lean-forward="true" selection-start-line="307" selection-start-column="5" selection-end-line="307" selection-end-column="5" />
         </state>
       </provider>
     </entry>
